@@ -1,11 +1,10 @@
 name: Token Check
 on: workflow_dispatch
 jobs:
-  print-length:
+  check:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          # We can't print the token itself (GitHub masks it), 
-          # but we can see its structure and length.
-          echo "Token starts with: ${GITHUB_TOKEN:0:10}..."
-          echo "Total length: ${#GITHUB_TOKEN} characters"
+          echo "Token Length: ${#GITHUB_TOKEN}"
+          echo "Token Start: $(echo $GITHUB_TOKEN | cut -d'.' -f1)"
+          echo "Dots found: $(echo -n $GITHUB_TOKEN | tr -cd '.' | wc -c)"
