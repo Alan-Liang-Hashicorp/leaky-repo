@@ -1,0 +1,113 @@
+name: Vault Radar Scan
+
+env:
+  FETCH_DEPTH: 1
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - "main"
+
+jobs:
+  vault-radar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+        with:
+          fetch-depth: ${{ env.FETCH_DEPTH }}
+
+      - name: Run Vault Radar
+        env:
+          GITHUB_TOKEN: ${{ github.token }} # to be able to get the PR commits
+          HCP_CLIENT_ID: ${{ secrets.HCP_CLIENT_ID }}
+          HCP_CLIENT_SECRET: ${{ secrets.HCP_CLIENT_SECRET }}
+          HCP_PROJECT_ID: ${{ secrets.HCP_PROJECT_ID }}
+          VAULT_RADAR_LOG_LEVEL: debug
+        run: |
+          set -x
+
+          echo "github.event.pull_request.head.sha = ${{ github.event.pull_request.head.sha }}"
+          echo "github.event.pull_request.base.sha = ${{ github.event.pull_request.base.sha }}"
+          echo "github.head_ref = ${{ github.head_ref }}"
+          echo "github.sha = ${{ github.sha }}"
+          echo "env.GITHUB_SHA = ${{ env.GITHUB_SHA }}"
+
+          echo "Downloading Vault Radar CLI"
+
+          export LATEST_VERSION=$(curl https://api.releases.hashicorp.com/v1/releases/vault-radar/latest | jq -r .version)
+          curl https://releases.hashicorp.com/vault-radar/${LATEST_VERSION}/vault-radar_${LATEST_VERSION}_linux_amd64.zip -o vr.zip
+          unzip vr.zip -d vr
+          mv vr/vault-radar .
+
+          chmod +x vault-radar
+          ./vault-radar --version
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]];
+          then
+            head_ref="${{ github.event.pull_request.head.sha }}"
+            base_ref="${{ github.event.pull_request.base.sha }}"
+            ref_name="${{ github.head_ref }}"
+            sha="${{ github.sha }}"
+
+            if [[ "${{ env.FETCH_DEPTH }}" == "2" ]];
+            then
+              # with depth 2 it is OK to scan merge commit only and not the other PR commits
+              ./vault-radar scan ci pr \
+                --pr ${{ github.event.pull_request.number }} \
+                --merge-commit ${sha} \
+                --ref-name ${ref_name} \
+                -s high \
+                -o vault-radar.jsonl \
+                -l vault-radar.log \
+                --pretty=gha_pr \
+                --summary-pretty markdown \
+                --summary-outfile $GITHUB_STEP_SUMMARY \
+                --upload-risks-to-hcp --skip-not-latest
+            else
+              # with depth == 1 we cannot scan the merge commit, nor other PR commits
+              # so, specify flag to get and clone those commits
+              if [[ "${{ env.FETCH_DEPTH }}" == "1" ]];
+              then
+                ./vault-radar scan ci pr \
+                  --pr ${{ github.event.pull_request.number }} \
+                  --merge-commit ${sha} \
+                  --ref-name ${ref_name} \
+                  -s high \
+                  -o vault-radar.jsonl \
+                  -l vault-radar.log \
+                  --pretty=gha_pr \
+                  --summary-pretty markdown \
+                  --summary-outfile $GITHUB_STEP_SUMMARY \
+                  --upload-risks-to-hcp --clone-pr-commits
+              else
+                # other depth, assume full/sufficient clone that has all the commits already
+                # so CLI can figure out what to scan from the clone itself and head/base branch names
+                #
+                ./vault-radar scan ci pr \
+                  --head-ref ${head_ref} \
+                  --base-ref ${base_ref} \
+                  --ref-name ${ref_name} \
+                  -s high \
+                  -o vault-radar.jsonl \
+                  -l vault-radar.log \
+                  --pretty=gha_pr \
+                  --summary-pretty markdown \
+                  --summary-outfile $GITHUB_STEP_SUMMARY \
+                  --upload-risks-to-hcp
+              fi
+            fi
+          else
+            echo TODO: scan pushed commit
+          fi
+
+      - name: debugging
+        if: failure()
+        run: |
+          cat vault-radar.log
+          cat vault-radar.jsonl
+
+# Made with Bob

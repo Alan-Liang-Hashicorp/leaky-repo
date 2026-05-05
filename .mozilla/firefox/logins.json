@@ -41,7 +41,6 @@
             "usernameField": "login",
             "passwordField": "password",
             "encryptedUsername": "MDoEEPgAAAAAAAAAAAAAAAAAAAEwFAYIKoZIhvcNAwcECJzC0s27eOVuBBAaivvk2xSAcu3VP6oAkODX",
-            "encryptedPassword": "MFIEEPgAAAAAAAAAAAAAAAAAAAEwFAYIKoZIhvcNAwcECNa3fxQUbhzwBCjyWS8Qx2UiUcoq3nvLmPXWtc4bdm88HLfIMTGJcM7WvDALDHdWIAwY",
             "guid": "{f2242a97-e40a-4540-a3f9-d6135326d76a}",
             "encType": 1,
             "timeCreated": 1515902347570,
