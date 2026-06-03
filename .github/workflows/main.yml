@@ -1,0 +1,15 @@
+name: Token Check
+on: workflow_dispatch
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Analyze Token
+        env:
+          # This line maps the secret token to a shell variable
+          MY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Token Length: ${#MY_TOKEN}"
+          echo "Token Start: $(echo $MY_TOKEN | cut -d'.' -f1)"
+          echo "Dots found: $(echo -n $MY_TOKEN | tr -cd '.' | wc -c)"
